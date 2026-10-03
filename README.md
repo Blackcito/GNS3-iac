@@ -13,6 +13,8 @@ El diseño arquitectónico separa por completo la lógica imperativa de ejecuci�
 *   **Enrutamiento y Perímetro:** Configuración automatizada de OSPF Multi-área para la propagación de rutas y NAT Overload (PAT) dinámico en el router de borde para salida a Internet.
 *   **Entorno de Pruebas:** Topología virtualizada en GNS3 sobre KVM/QEMU (Linux), utilizando una red Out-of-Band (OOB) para la gestión.
 
+![[Pasted image 20261003134624.png]]
+
 ## Estructura del Repositorio
 *   `inventario.yaml`: Base de datos centralizada con la topología, credenciales y parámetros de red.
 *   `comun.py`: Módulo core con funciones reutilizables de conexión, escalada de privilegios y generación de comandos base.
