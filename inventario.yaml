@@ -1,0 +1,203 @@
+---
+# ============================================================
+#  inventario.yaml — Fuente de verdad del proyecto (IaC)
+#  Toda IP, VLAN y puerto vive aquí. El código Python NO
+#  hardcodea nada: solo lee este archivo.
+# ============================================================
+
+# Credenciales globales (usadas por todos los equipos)
+global_vars:
+  username: "admin"
+  password: "admin"
+
+# VLANs de la red
+# Convención: número de VLAN = tercer octeto de su subred.
+#   VLAN 20 → 10.1.20.0/24,  VLAN 30 → 10.1.30.0/24, etc.
+# NOTA: la VLAN 10 queda "reservada" para gestión in-band futura.
+vlans:
+  "10":
+    name: "administracion"
+  "20":
+    name: "ventas"
+  "30":
+    name: "ti"
+  "40":
+    name: "recursos_humanos"
+
+# Parámetros globales de OSPF (se usa en la Fase 4)
+ospf:
+  area: "0"
+
+# ---------- ROUTER DE BORDE (WAN / Internet) ----------
+routers:
+  r1:
+    hostname: "R1"
+    ip_mgmt: "192.168.122.10"
+    device_type: "arista_eos"
+    router_id: "1.1.1.1"
+    enlaces_ruteados:
+      - interface: "Ethernet1"
+        ip: "10.1.255.2/30"
+        descripcion: "hacia_Dist-Sw1"
+      - interface: "Ethernet2"
+        ip: "10.1.255.6/30"
+        descripcion: "hacia_Dist-Sw2"
+    wan:
+      interface: "Ethernet3"
+      ip: "dhcp"
+
+# ---------- CAPA DE DISTRIBUCIÓN (L3) ----------
+switches_distribucion:
+  dist_sw1:
+    hostname: "Dist-Sw1"
+    ip_mgmt: "192.168.122.11"
+    device_type: "arista_eos"
+    router_id: "2.2.2.2"
+    stp_role: "root_primary"
+    svis:
+      - vlan: "20"
+        ip: "10.1.20.2/24" # IP real de este switch
+        vrrp_group: 20
+        vrrp_ip: "10.1.20.1" # IP virtual (gateway de los hosts)
+        priority: 120
+      - vlan: "30"
+        ip: "10.1.30.2/24"
+        vrrp_group: 30
+        vrrp_ip: "10.1.30.1"
+        priority: 120
+      - vlan: "40"
+        ip: "10.1.40.2/24"
+        vrrp_group: 40
+        vrrp_ip: "10.1.40.1"
+        priority: 120
+    enlaces_ruteados:
+      - interface: "Ethernet1"
+        ip: "10.1.255.1/30"
+        descripcion: "hacia_R1"
+      - interface: "Port-Channel1"
+        ip: "10.1.254.1/30"
+        descripcion: "hacia_Dist-Sw2"
+        members: ["Ethernet2", "Ethernet3"]
+    trunks:
+      - interface: "Port-Channel2"
+        members: ["Ethernet4", "Ethernet5"]
+        vlans: "20"
+        descripcion: "hacia_Access1"
+      - interface: "Port-Channel3"
+        members: ["Ethernet6", "Ethernet7"]
+        vlans: "30"
+        descripcion: "hacia_Access2"
+      - interface: "Ethernet8" # enlace simple (sin LACP)
+        vlans: "40"
+        descripcion: "hacia_Access3"
+
+  dist_sw2:
+    hostname: "Dist-Sw2"
+    ip_mgmt: "192.168.122.12"
+    device_type: "arista_eos"
+    router_id: "3.3.3.3"
+    stp_role: "root_secondary"
+    svis:
+      - vlan: "20"
+        ip: "10.1.20.3/24" # IP real de este switch
+        vrrp_group: 20
+        vrrp_ip: "10.1.20.1" # IP virtual (gateway de los hosts)
+        priority: 100
+      - vlan: "30"
+        ip: "10.1.30.3/24"
+        vrrp_group: 30
+        vrrp_ip: "10.1.30.1"
+        priority: 100
+      - vlan: "40"
+        ip: "10.1.40.3/24"
+        vrrp_group: 40
+        vrrp_ip: "10.1.40.1"
+        priority: 100
+    enlaces_ruteados:
+      - interface: "Ethernet1"
+        ip: "10.1.255.5/30"
+        descripcion: "hacia_R1"
+      - interface: "Port-Channel1"
+        ip: "10.1.254.2/30"
+        descripcion: "hacia_Dist-Sw1"
+        members: ["Ethernet2", "Ethernet3"]
+    trunks:
+      - interface: "Ethernet4" # enlace simple hacia Access1
+        vlans: "20"
+        descripcion: "hacia_Access1"
+      - interface: "Port-Channel2" # hacia Access2
+        members: ["Ethernet5", "Ethernet6"]
+        vlans: "30"
+        descripcion: "hacia_Access2"
+      - interface: "Port-Channel3" # hacia Access3
+        members: ["Ethernet7", "Ethernet8"]
+        vlans: "40"
+        descripcion: "hacia_Access3"
+
+# ---------- CAPA DE ACCESO (L2) ----------
+switches_acceso:
+  acceso1:
+    hostname: "Access1"
+    ip_mgmt: "192.168.122.13"
+    device_type: "arista_eos"
+    trunks:
+      - interface: "Port-Channel1"
+        members: ["Ethernet1", "Ethernet2"]
+        vlans: "20"
+        descripcion: "hacia_Dist-Sw1"
+      - interface: "Ethernet3"
+        vlans: "20"
+        descripcion: "hacia_Dist-Sw2"
+    puertos_acceso:
+      - interfaces: ["Ethernet4", "Ethernet5", "Ethernet6"]
+        vlan: "20"
+        descripcion: "PCs_ventas"
+
+  acceso2:
+    hostname: "Access2"
+    ip_mgmt: "192.168.122.14"
+    device_type: "arista_eos"
+    trunks:
+      - interface: "Port-Channel2"
+        members: ["Ethernet1", "Ethernet2"]
+        vlans: "30"
+        descripcion: "hacia_Dist-Sw1"
+      - interface: "Port-Channel3"
+        members: ["Ethernet3", "Ethernet4"]
+        vlans: "30"
+        descripcion: "hacia_Dist-Sw2"
+    puertos_acceso:
+      - interfaces: ["Ethernet5", "Ethernet6", "Ethernet7"]
+        vlan: "30"
+        descripcion: "PCs_ti"
+
+  acceso3:
+    hostname: "Access3"
+    ip_mgmt: "192.168.122.15"
+    device_type: "arista_eos"
+    trunks:
+      - interface: "Port-Channel4"
+        members: ["Ethernet1", "Ethernet2"]
+        vlans: "40"
+        descripcion: "hacia_Dist-Sw2"
+      - interface: "Ethernet3"
+        vlans: "40"
+        descripcion: "hacia_Dist-Sw1"
+    puertos_acceso:
+      - interfaces: ["Ethernet4", "Ethernet5", "Ethernet6"]
+        vlan: "40"
+        descripcion: "PCs_recursos_humanos"
+
+# ---------- PCs (VPCS) — solo referencia del plan de IPs ----------
+# NOTA: los VPCS no se configuran con Netmiko (no son Arista).
+#       Este bloque documenta las IPs para configurarlas a mano en GNS3.
+vpcs:
+  vpc1: { ip: "10.1.20.10", vlan: "20" }
+  vpc2: { ip: "10.1.20.11", vlan: "20" }
+  vpc3: { ip: "10.1.20.12", vlan: "20" }
+  vpc4: { ip: "10.1.30.10", vlan: "30" }
+  vpc5: { ip: "10.1.30.11", vlan: "30" }
+  vpc6: { ip: "10.1.30.12", vlan: "30" }
+  vpc7: { ip: "10.1.40.10", vlan: "40" }
+  vpc8: { ip: "10.1.40.11", vlan: "40" }
+  vpc9: { ip: "10.1.40.12", vlan: "40" }

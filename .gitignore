@@ -1,0 +1,20 @@
+# Entorno Virtual
+venv/
+.venv/
+env/
+
+# Archivos de Log de Netmiko
+*.log
+logs/
+
+# Archivos de Caché de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos temporales de Editores (Neovim, VSCode)
+*.swp
+*.swo
+.vscode/
+.idea/
